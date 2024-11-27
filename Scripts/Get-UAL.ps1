@@ -79,7 +79,7 @@ function Get-UALAll
         [string]$StartDate,
         [string]$EndDate,
         [string]$UserIds = "*",
-        [int]$Interval = 720,
+        [int]$Interval = "",
         [string]$Output = "CSV",
         [switch]$MergeOutput,
         [string]$OutputDir,
@@ -121,7 +121,13 @@ function Get-UALAll
 		}
 	}
 	
-	$resetInterval = $Interval
+	if ($Interval -ne "") {
+	    Write-Logfile -Message "[DEPRECATION] The Interval parameter is deprecated and will be removed in a future version" -Color "Yellow"
+	} else {
+	    $Interval = "720"
+	}
+
+
 	
 	[DateTime]$currentStart = $script:StartDate
 	[DateTime]$currentEnd = $script:EndDate
@@ -148,82 +154,82 @@ function Get-UALAll
 		
 		elseif ($amountResults -gt 5000) {
 			while ($amountResults -gt 5000) {
-				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $CurrentEnd -ResultSize 1 @baseSearchQuery | Select-Object -First 1 -ExpandProperty ResultCount
 				if ($amountResults -lt 5000) {
 					if ($Interval -eq 0) {
 						Exit
 					}
 				}
-
 				else {
 					Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
 					$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
 					$currentEnd = $currentStart.AddMinutes($Interval)
 					Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
 				}
+				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $CurrentEnd -ResultSize 1 @baseSearchQuery | Select-Object -First 1 -ExpandProperty ResultCount
 			}
 		}
 															
-		else {
-			$Interval = $resetInterval
-			
-			if ($currentEnd -gt $script:EndDate) {
-				$currentEnd = $script:EndDate
-			}
-			
-			$currentTries = 0
-			$sessionID = $currentStart.ToString("yyyyMMddHHmmss")
-				
-			while ($true) {
-				[Array]$results = Search-UnifiedAuditLog -StartDate $CurrentStart -EndDate $currentEnd -SessionCommand ReturnLargeSet -ResultSize $resultSize @baseSearchQuery 
-				$currentCount = 0
-				
-				if ($null -eq $results -or $results.Count -eq 0) {
-					if ($currentTries -lt $retryCount) {
-						Write-LogFile -Message "[WARNING] The download encountered an issue and there might be incomplete data" -Color "Red"
-						Write-LogFile -Message "[INFO] Sleeping 10 seconds before we try again" -Color "Red"
-						Start-Sleep -Seconds 10
-						$currentTries = $currentTries + 1
-						continue
-					}
-					
-					else{
-						Write-LogFile -Message "[WARNING] Empty data set returned between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Retry count reached. Moving forward!"
-						break
-					}
-				}
-				
-				else {					
-					$currentTotal = $results[0].ResultCount
-					$currentCount = $currentCount + $results.Count
-					Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
-					
-					if ($currentTotal -eq $results[$results.Count - 1].ResultIndex) {
-						$message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
-						
-						if ($Output -eq "JSON")
-						{
-							$results = $results | ForEach-Object {
-								$_.AuditData = $_.AuditData | ConvertFrom-Json
-								$_
-							}
+        if ($currentEnd -gt $script:EndDate) {
+            $currentEnd = $script:EndDate
+        }
 
-							$json = $results | ConvertTo-Json -Depth 100
-							$json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
-							Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
-							Write-LogFile -Message $message  -Color "Green"
-						}
-						elseif ($Output -eq "CSV") {
-							$results | export-CSV "$OutputDir/UAL-$sessionID.csv" -NoTypeInformation -Append -Encoding $Encoding
-							Write-LogFile -Message $message -Color "Green"
-						}
-						
-						break
-					}
-				}				
-			}
-			$CurrentStart = $CurrentEnd
-		}
+        $currentTries = 0
+        $sessionID = $currentStart.ToString("yyyyMMddHHmmss")
+
+        while ($true) {
+		    Write-LogFile "[INFO] Fetching $amountResults logs between $CurrentStart and $CurrentEnd"
+            [Array]$results = Search-UnifiedAuditLog -StartDate $CurrentStart -EndDate $currentEnd -SessionCommand ReturnLargeSet -ResultSize $resultSize @baseSearchQuery
+            $currentCount = 0
+
+            if ($null -eq $results -or $results.Count -eq 0) {
+                if ($currentTries -lt $retryCount) {
+                    Write-LogFile -Message "[WARNING] The download encountered an issue and there might be incomplete data" -Color "Red"
+                    Write-LogFile -Message "[INFO] Sleeping 10 seconds before we try again" -Color "Red"
+                    Start-Sleep -Seconds 10
+                    $currentTries = $currentTries + 1
+                    continue
+                }
+
+                else{
+                    Write-LogFile -Message "[WARNING] Empty data set returned between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Retry count reached. Moving forward!"
+                    break
+                }
+            }
+
+            else {
+                $currentTotal = $results[0].ResultCount
+                $currentCount = $currentCount + $results.Count
+                Write-LogFile -Message "[INFO] Found $currentTotal audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
+
+                if ($currentTotal -eq $results[$results.Count - 1].ResultIndex) {
+                    $message = "[INFO] Successfully retrieved $($currentCount) records out of total $($currentTotal) for the current time range. Moving on!"
+
+                    if ($Output -eq "JSON")
+                    {
+                        $results = $results | ForEach-Object {
+                            $_.AuditData = $_.AuditData | ConvertFrom-Json
+                            $_
+                        }
+
+                        $json = $results | ConvertTo-Json -Depth 100
+                        $json | Out-File -Append "$OutputDir/UAL-$sessionID.json" -Encoding $Encoding
+                        Add-Content "$OutputDir/UAL-$sessionID.json" "`n"
+                        Write-LogFile -Message $message  -Color "Green"
+                    }
+                    elseif ($Output -eq "CSV") {
+                        $results | export-CSV "$OutputDir/UAL-$sessionID.csv" -NoTypeInformation -Append -Encoding $Encoding
+                        Write-LogFile -Message $message -Color "Green"
+                    }
+
+                    break
+                }
+            }
+        }
+        $CurrentStart = $CurrentEnd
+
+        # Calculate the Interval for the next iteration
+        $Interval = [math]::floor(5000 / ($currentCount / $Interval))
+        Write-LogFile -Message "[INFO] Setting interval to $Interval minutes"
 	}
 
 	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
