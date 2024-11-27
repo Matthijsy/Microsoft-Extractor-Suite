@@ -176,7 +176,7 @@ function Get-UALAll
 				else {
 					Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
 					$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
-					Write-LogFile -Message "[INFO] Lowering time interval to $Interval minutes" -Color "Green"
+					Write-LogFile -Message "[INFO] Lowering time interval to $Interval minutes" -Color "Yellow"
 
 					# Prevent a loop from lowering and increasing
 					if($maximizeAttempts -gt 0) {
@@ -249,7 +249,7 @@ function Get-UALAll
         $CurrentStart = $CurrentEnd
 
         # Calculate the Interval for the next iteration
-        $IntervalBasedOnRecordRate = [math]::floor(5000 / ($currentCount / $Interval) * 0.9)
+        $IntervalBasedOnRecordRate = [math]::Round(($Interval/(($currentCount/5000)*1.25)),2)
         $Interval =  [math]::min($IntervalBasedOnRecordRate, 1440)
         Write-LogFile -Message "[INFO] Setting interval to $Interval minutes" -Color "Yellow"
 
