@@ -145,26 +145,45 @@ function Get-UALAll
 
 	while ($currentStart -lt $script:EndDate) {	
 		$currentEnd = $currentStart.AddMinutes($Interval)
-		$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd @baseSearchQuery -ResultSize 1 | Select-Object -First 1 -ExpandProperty ResultCount
+		$result = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd @baseSearchQuery -ResultSize 1
+		$amountResults = $result | Select-Object -First 1 -ExpandProperty ResultCount
 
 		if ($null -eq $amountResults) {
 			Write-LogFile -Message "[INFO] No audit logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")). Moving on!"
+			Write-LogFile $result
+
 			$CurrentStart = $CurrentEnd
 		}
 		
 		elseif ($amountResults -gt 5000) {
-			while ($amountResults -gt 5000) {
-				if ($amountResults -lt 5000) {
+		    $maximizeAttempts = 0
+			while ($amountResults -gt 5000 -or $amountResults -lt 2500) {
+                if ($amountResults -lt 2500 -and $maximizeAttempts -lt 3) {
+                    # Current interval will result in a low record amount
+                    # So try to increase it a bit again
+                    # This mainly happens when records are not distributed evenly over time
+                    $maximizeAttempts = $maximizeAttempts + 1
+                    $Interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
+                    Write-LogFile -Message "[INFO] Increasing time interval to $Interval minutes" -Color "Yellow"
+
+                }
+				elseif ($amountResults -lt 5000) {
 					if ($Interval -eq 0) {
 						Exit
 					}
+					break
 				}
 				else {
 					Write-LogFile -Message "[WARNING] $amountResults entries between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) exceeding the maximum of 5000 of entries" -Color "Red"
 					$interval = [math]::Round(($Interval/(($amountResults/5000)*1.25)),2)
-					$currentEnd = $currentStart.AddMinutes($Interval)
-					Write-LogFile -Message "[INFO] Temporary lowering time interval to $Interval minutes" -Color "Yellow"
+					Write-LogFile -Message "[INFO] Lowering time interval to $Interval minutes" -Color "Green"
+
+					# Prevent a loop from lowering and increasing
+					if($maximizeAttempts -gt 0) {
+					    $maximizeAttempts = 4
+					}
 				}
+				$currentEnd = $currentStart.AddMinutes($Interval)
 				$amountResults = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $CurrentEnd -ResultSize 1 @baseSearchQuery | Select-Object -First 1 -ExpandProperty ResultCount
 			}
 		}
@@ -177,7 +196,7 @@ function Get-UALAll
         $sessionID = $currentStart.ToString("yyyyMMddHHmmss")
 
         while ($true) {
-		    Write-LogFile "[INFO] Fetching $amountResults logs between $CurrentStart and $CurrentEnd"
+		    Write-LogFile "[INFO] Fetching $amountResults logs between $($currentStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK")) and $($currentEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"))"
             [Array]$results = Search-UnifiedAuditLog -StartDate $CurrentStart -EndDate $currentEnd -SessionCommand ReturnLargeSet -ResultSize $resultSize @baseSearchQuery
             $currentCount = 0
 
@@ -224,12 +243,16 @@ function Get-UALAll
                     break
                 }
             }
+            $recordCount = $results[$results.Count - 1].ResultIndex
+            Write-LogFile -Message "[ERROR] Received $recordCount records, while expecting $currentTotal. Retrying.." -Color "Red"
         }
         $CurrentStart = $CurrentEnd
 
         # Calculate the Interval for the next iteration
-        $Interval = [math]::floor(5000 / ($currentCount / $Interval))
-        Write-LogFile -Message "[INFO] Setting interval to $Interval minutes"
+        $IntervalBasedOnRecordRate = [math]::floor(5000 / ($currentCount / $Interval) * 0.9)
+        $Interval =  [math]::min($IntervalBasedOnRecordRate, 1440)
+        Write-LogFile -Message "[INFO] Setting interval to $Interval minutes" -Color "Yellow"
+
 	}
 
 	if ($Output -eq "CSV" -and ($MergeOutput.IsPresent)) {
