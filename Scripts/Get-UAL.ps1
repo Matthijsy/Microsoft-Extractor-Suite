@@ -249,9 +249,11 @@ function Get-UALAll
         $CurrentStart = $CurrentEnd
 
         # Calculate the Interval for the next iteration
-        $IntervalBasedOnRecordRate = [math]::Round(($Interval/(($currentCount/5000)*1.25)),2)
-        $Interval =  [math]::min($IntervalBasedOnRecordRate, 1440)
-        Write-LogFile -Message "[INFO] Setting interval to $Interval minutes" -Color "Yellow"
+        if($currentCount -gt 0) {
+            $IntervalBasedOnRecordRate = [math]::Round(($Interval/(($currentCount/5000)*1.25)),2)
+            $Interval =  [math]::min($IntervalBasedOnRecordRate, 1440)
+            Write-LogFile -Message "[INFO] Setting interval to $Interval minutes" -Color "Yellow"
+        }
 
 	}
 
