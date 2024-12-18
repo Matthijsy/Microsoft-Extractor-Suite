@@ -23,6 +23,7 @@ NestedModules = @(
 	".\Scripts\Get-UAL.ps1"
 	".\Scripts\Get-UALStatistics.ps1"
 	".\Scripts\Connect.ps1"
+ 	".\Scripts\Disconnect.ps1"
 	".\Scripts\Get-Rules.ps1"
 	".\Scripts\Get-MailboxAuditLog.ps1"
 	".\Scripts\Get-MessageTraceLog.ps1"
@@ -39,6 +40,7 @@ NestedModules = @(
 	".\Scripts\Get-MailItemsAccessed.ps1"
 	".\Scripts\Get-UALGraph.ps1"
 	".\Scripts\Get-AzureDirectoryActivityLogs.ps1"
+ 	".\Scripts\Get-ProductLicenses.ps1"
 )
 
 FunctionsToExport = @(
@@ -46,7 +48,12 @@ FunctionsToExport = @(
 	"Connect-M365"
 	"Connect-Azure"
 	"Connect-AzureAZ"
-	
+
+	# Disconnect.ps1
+	"Disconnect-M365"
+	"Disconnect-Azure"
+	"Disconnect-AzureAZ"
+
 	# Get-UAL.ps1
 	"Get-UALAll"
 	"Get-UALGroup"
@@ -91,9 +98,10 @@ FunctionsToExport = @(
 	"Get-ADSignInLogsGraph"
 	"Get-ADAuditLogsGraph"
 
-	# Get-Users.ps1
+	# Get-UsersInfo.ps1
 	"Get-Users"
 	"Get-AdminUsers"
+ 	"Get-UserDevices"
 
 	# Get-MFAStatus.ps1
 	"Get-MFA"
@@ -113,6 +121,12 @@ FunctionsToExport = @(
 	# Get-MailItemsAccessed.ps1
 	"Get-Sessions"
 	"Get-MessageIDs"
+
+ 	# Get-ProductLicenses.ps1
+  	"Get-Licenses"
+	"Get-LicenseCompatibility"
+	"Get-EntraSecurityDefaults"
+	"Get-LicensesByUser"
 )
 
 # Variables to export from this module
