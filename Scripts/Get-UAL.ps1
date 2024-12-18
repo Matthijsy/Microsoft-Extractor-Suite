@@ -143,7 +143,7 @@ function Get-UALAll
         Write-LogFile -Message "[INFO] Filtering by ObjectIds: $ObjectIds" -Color "Green"
     }
 
-	while ($currentStart -lt $script:EndDate) {	
+	while ($currentStart -lt $script:EndDate) {
 		$currentEnd = $currentStart.AddMinutes($Interval)
 		$result = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd @baseSearchQuery -ResultSize 1
 		$amountResults = $result | Select-Object -First 1 -ExpandProperty ResultCount
@@ -153,6 +153,7 @@ function Get-UALAll
 			Write-LogFile $result
 
 			$CurrentStart = $CurrentEnd
+			continue
 		}
 		
 		elseif ($amountResults -gt 5000) {
