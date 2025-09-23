@@ -623,8 +623,16 @@ function Get-UAL {
 													if ($isDebugEnabled) {
                                                         Write-LogFile -Message "[DEBUG]   WARNING: Empty dataset returned" -Level Debug
                                                     }
-													if($performance.TotalSeconds -ge 960) {
-														Write-LogFile -Message "[WARNING] API call took $([math]::round($performance.TotalSeconds, 2)) seconds, indicating an issue with the Microsoft API. Restarting batch." -Color "Yellow" -Level Standard
+													if($performance.TotalSeconds -ge 960)
+													{
+														Write-LogFile -Message "[WARNING] API call took $([math]::round($performance.TotalSeconds, 2) ) seconds, indicating an issue with the Microsoft API. Restarting batch." -Color "Yellow" -Level Standard
+
+														$check = Invoke-WebRequest -Uri "https://google.com"
+														Write-LogFile -Message "[INFO] Internet connectivity check returned status code: $( $check.StatusCode )" -Level Standard
+														if ($check.StatusCode -ne 200)
+														{
+															exit 1
+														}
 														break
 													}
 													if($emptyRetryCount -ge 3) {
