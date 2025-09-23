@@ -633,7 +633,7 @@ function Get-UAL {
 														{
 															exit 1
 														}
-														Set-PSDebug -Trace 2
+														Set-PSDebug -Trace 1
 														break
 													}
 													if($emptyRetryCount -ge 3) {
